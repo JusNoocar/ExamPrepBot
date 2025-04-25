@@ -15,9 +15,6 @@ def matching_playlist_dirs(tags={}):
       playlist = Playlist(json.load(file))
     # if "tags" not in playlist:
     #   continue
-    print(playlist.tags)
-    print(tags)
-    print()
     if all((key in playlist.tags and tags[key] == playlist.tags[key]) for key in tags):
       result.append(folder)
   

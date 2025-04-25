@@ -10,14 +10,37 @@ class Playlist:
 
     def make_tags(title):
       tags = dict()
+      title = title.replace('  ', ' ')
       if '—' in title:
         name, lecturer = title.split(') — ')
-      else:
+      elif '-' in title:
         name, lecturer = title.split(') - ')
-      tags['lecturer'] = lecturer
+      else:
+        name = title.split(')')[0]
+        lecturer = ''
+      tags['lecturer'] = lecturer.replace('. ', '.')
       tags['subject'], playlist_period = name.split(' (')
-      tags['course'] = playlist_period.split(', ')[0][0]
-      tags['season'], tags['year'] = playlist_period.split(', ')[1].split(' ')
+      if ',' in playlist_period:
+        if (playlist_period.split(', ')[0][0]).isdigit():
+          tags['course'] = playlist_period.split(', ')[0][0]
+          tags['season'], tags['year'] = playlist_period.split(', ')[1].split(' ')
+        else:
+          tags['course'] = playlist_period.split(', ')[1][0]
+          tags['season'], tags['year'] = playlist_period.split(', ')[0].split(' ')
+      else:
+        tags['course'] = ''
+        # print(playlist_period)
+        splitter = playlist_period.split(' ')
+        if len(splitter) == 2:
+            tags['season'], tags['year'] = splitter
+        elif len(splitter) == 4:
+          if (splitter[0][0]).isdigit():
+            tags['course'] = splitter[0][0]
+            tags['season'], tags['year'] = splitter[2], splitter[3]
+          else:
+            tags['course'] = splitter[2][0]
+            tags['season'], tags['year'] = splitter[0], splitter[1]
+
 
       return tags
     #self.tags = json_data["tags"]
@@ -43,22 +66,40 @@ class Video:
       tags = dict()
       info = description.split('\n\n')
       for bit in info:
-        if len(bit) > 5 and bit[:5] == "00:00" or "Таймкоды" in bit:
+        if (len(bit) > 5 and bit[:5] == "00:00") or ("Таймкоды" in bit and len(bit.split('\n')) > 1):
           bit_copy = bit.replace("Таймкоды:", "Таймкоды")
           bit_copycopy = bit_copy.split("Таймкоды\n")[-1]
           if all("-" in line for line in bit_copycopy.split('\n')):
             timestamps = [line.split(' - ') for line in bit_copycopy.split('\n')]
           else:
             timestamps = [[line.split(' ')[0], ' '.join(line.split(' ')[1:])] for line in bit_copycopy.split('\n')]
-        if "дата лекции" in bit.lower():
+        if "Дата лекции" in bit:
           bit_copy = bit.replace(':\n', ': ')
-          if ":" in bit_copy:
-            lecture_date = bit_copy.split('\n')[0].split(': ')[1]
+          bit_copycopy = bit_copy.split("Дата лекции")[-1]
+          if ":" in bit_copycopy:
+            lecture_date = bit_copycopy.split('\n')[0].split(': ')[1]
           else:
-            lecture_date = bit_copy.split('\n')[1]
+            lecture_date = bit_copycopy.split('\n')[1]
+        elif "Дата семинара" in bit:
+          bit_copy = bit.replace(':\n', ': ')
+          bit_copycopy = bit_copy.split("Дата семинара")[-1]
+          if ":" in bit_copycopy:
+            lecture_date = bit_copycopy.split('\n')[0].split(': ')[1]
+          else:
+            lecture_date = bit_copycopy.split('\n')[1]
+        elif "Дата допсема" in bit:
+          bit_copy = bit.replace(':\n', ': ')
+          bit_copycopy = bit_copy.split("Дата допсема")[-1]
+          if ":" in bit_copycopy:
+            lecture_date = bit_copycopy.split('\n')[0].split(': ')[1]
+          else:
+            lecture_date = bit_copycopy.split('\n')[1]
         if "Лектор" in bit:
-          bit_copy = bit.split("Лектор")[1]
-          lecturer = bit_copy.split(": ")[1]
+          bit_copy = bit.split("Лектор")[-1]
+          lecturer = bit_copy.split("\n")[0].split(': ')[-1]
+        elif "Семинарист" in bit:
+          bit_copy = bit.split("Семинарист")[-1]
+          lecturer = bit_copy.split("\n")[0].split(': ')[-1]
       tags["lecturer"] = lecturer
       tags["lecture_date"] = lecture_date
       tags["year"] = lecture_date.split(".")[-1]
@@ -69,7 +110,9 @@ class Video:
 
     # self.tags = json_data["tags"]
     self.tags, self.timestamps = make_tags(self.desc)
-    self.transcript = Transcript(json_data["snippet"]["transcript"])
+    self.transcript = None
+    if json_data["snippet"]["transcript"] != None:
+        self.transcript = Transcript(json_data["snippet"]["transcript"])
 
     self.playlist = playlist
     self.playlist.add_video(self)

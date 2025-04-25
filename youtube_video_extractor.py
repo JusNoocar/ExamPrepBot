@@ -77,7 +77,12 @@ def get_video(youtube, video_id):
     return video_data
 
 def get_transcript(ytt_api, video_id):
-    fetched_transcript = ytt_api.fetch(video_id, languages=['ru'])
+    
+    try:
+      fetched_transcript = ytt_api.fetch(video_id, languages=['ru'])
+    except Exception:
+      print(f"https://www.youtube.com/watch?v={video_id}", " - transcript unavailable!")
+      return None
     # for snippet in fetched_transcript:
     #   print(snippet.text)
 
@@ -91,6 +96,9 @@ def dumper(obj, filename):
 
 
 def make_folder(playlist):
+    if os.path.exists(f"database/{playlist['id']}"):
+        return
+    
     os.mkdir(f"database/{playlist['id']}")
     dir = f"database/{playlist['id']}/desc.json"
     with open(dir, "w") as file:
@@ -100,6 +108,10 @@ def add_to_folder(playlist_id, video):
     video_id = video["contentDetails"]["videoId"]
     filename = f"{video_id}.json"
     dir = f"database/{playlist_id}/{filename}"
+
+    if os.path.exists(dir):
+        return
+    
     with open(dir, "w") as file:
         json.dump(video, file)
 
@@ -107,7 +119,7 @@ def add_to_folder(playlist_id, video):
    
 def update(youtube, ytt_api):
     channel_id = "UCdxesVp6Fs7wLpnp1XKkvZg"
-    playlists = get_playlists(youtube, channel_id, 2)
+    playlists = get_playlists(youtube, channel_id, 20)
 
     for playlist in playlists:
 
@@ -131,8 +143,10 @@ def update(youtube, ytt_api):
           video_id = video["contentDetails"]["videoId"]
           #print(f"id={video_id}")
           
-          video["snippet"]["transcript"] = get_transcript(ytt_api, video_id)
-          add_to_folder(playlist_id, video)
+          check_dir = f"database/{playlist_id}/{video_id}.json"
+          if not os.path.exists(check_dir):
+              video["snippet"]["transcript"] = get_transcript(ytt_api, video_id)
+              add_to_folder(playlist_id, video)
       print("================================")
 
 def pickle_get_object(filename):

@@ -1,12 +1,12 @@
 from video_searcher import global_search
 
 def main():
-    playlist_tags = {"lecturer":"Степанов И. Д.", "course":"1"}
-    playlist_tags = {}
+    playlist_tags = {"subject":'Алгоритмы и структуры данных, продвинутый поток', "course":"1", "season":"весна"}
+    #playlist_tags = {}
     video_tags = {}
     response = global_search(playlist_tags, video_tags)
 
-    for i in range(min(7, len(response))):
+    for i in range(len(response)):
       print(response[i].tags)
       print(response[i].playlist.tags)
       print(response[i].timestamps)
