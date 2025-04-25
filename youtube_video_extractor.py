@@ -38,10 +38,11 @@ def authentification():
     )
     return youtube, ytt_api
 
-def get_playlists(youtube, channel_id):
+def get_playlists(youtube, channel_id, max_results):
     request = youtube.playlists().list(
         part="id,snippet",
-        channelId=channel_id
+        channelId=channel_id,
+        maxResults=max_results,
     )
     playlists_list = request.execute()["items"]
 
@@ -60,7 +61,8 @@ def get_playlist_items(youtube, playlist_id):
     
     request = youtube.playlistItems().list(
         part="contentDetails,snippet",
-        playlistId=playlist_id
+        playlistId=playlist_id,
+        maxResults=50,
     )
     videos_list = request.execute()["items"]
 
@@ -89,15 +91,15 @@ def dumper(obj, filename):
 
 
 def make_folder(playlist):
-    #os.mkdir(playlist["id"])
-    dir = f"{playlist['id']}/desc.json"
+    os.mkdir(f"database/{playlist['id']}")
+    dir = f"database/{playlist['id']}/desc.json"
     with open(dir, "w") as file:
         json.dump(playlist, file)
 
 def add_to_folder(playlist_id, video):
     video_id = video["contentDetails"]["videoId"]
     filename = f"{video_id}.json"
-    dir = f"{playlist_id}/{filename}"
+    dir = f"database/{playlist_id}/{filename}"
     with open(dir, "w") as file:
         json.dump(video, file)
 
@@ -105,30 +107,33 @@ def add_to_folder(playlist_id, video):
    
 def update(youtube, ytt_api):
     channel_id = "UCdxesVp6Fs7wLpnp1XKkvZg"
-    #playlists = get_playlists(youtube, channel_id)
+    playlists = get_playlists(youtube, channel_id, 2)
 
+    for playlist in playlists:
 
-    playlist_id = "PL4_hYwCyhAvaUQ6oGA7sjUcf2VXSo1Txy"
-    playlist = get_one_playlist(youtube, playlist_id)[0]
-    print("Плейлист:", playlist["snippet"]["title"])
-    print("Плейлист:", playlist["snippet"]["description"])
-    print("-----------------------------------------------")
-    # title = "Алгоритмы и структуры данных / основной поток (1 курс, весна 2025) - Степанов И. Д."
-    # big_video_id = "Cy7M4WnFFUY"
+      #playlist_id = "PL4_hYwCyhAvaUQ6oGA7sjUcf2VXSo1Txy"
+      playlist_id = playlist["id"]
+      #playlist = get_one_playlist(youtube, playlist_id)[0]
+      print("Плейлист:", playlist["snippet"]["title"])
+      print("Плейлист:", playlist["snippet"]["description"])
+      print("-----------------------------------------------")
+      # title = "Алгоритмы и структуры данных / основной поток (1 курс, весна 2025) - Степанов И. Д."
+      # big_video_id = "Cy7M4WnFFUY"
 
-    make_folder(playlist)
+      make_folder(playlist)
 
-    playlist_items = get_playlist_items(youtube, playlist_id)
+      playlist_items = get_playlist_items(youtube, playlist_id)
 
-    for video in playlist_items:
-        #video = get_video(item["id"])
-        print(video["snippet"]["title"])
-        print(video["snippet"]["description"])
-        video_id = video["contentDetails"]["videoId"]
-        print(f"id={video_id}")
-        print("================================")
-        video["snippet"]["transcript"] = get_transcript(ytt_api, video_id)
-        add_to_folder(playlist_id, video)
+      for video in playlist_items:
+          #video = get_video(item["id"])
+          print(video["snippet"]["title"])
+          #print(video["snippet"]["description"])
+          video_id = video["contentDetails"]["videoId"]
+          #print(f"id={video_id}")
+          
+          video["snippet"]["transcript"] = get_transcript(ytt_api, video_id)
+          add_to_folder(playlist_id, video)
+      print("================================")
 
 def pickle_get_object(filename):
     with open(filename, 'rb') as file:
