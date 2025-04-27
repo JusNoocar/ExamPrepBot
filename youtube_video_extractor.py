@@ -1,3 +1,7 @@
+"""
+This code extracts videos from Youtube and stores them in the database.
+"""
+
 import io
 import os
 import json
@@ -10,14 +14,19 @@ from googleapiclient.http import MediaIoBaseDownload
 
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.proxies import WebshareProxyConfig
-import pickle
 
 
 scopes = ["https://www.googleapis.com/auth/youtube.force-ssl"]
 
 def authentification():
-    # Disable OAuthlib's HTTPS verification when running locally.
-    # *DO NOT* leave this option enabled in production.
+    """
+    Performs OAuth2 authentication and initializes YouTube and transcript API.
+    
+    Returns:
+        tuple: (youtube, ytt_api)
+            youtube: Google API client for YouTube v3.
+            ytt_api: YouTubeTranscriptApi client.
+    """
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
     api_service_name = "youtube"
@@ -39,6 +48,17 @@ def authentification():
     return youtube, ytt_api
 
 def get_playlists(youtube, channel_id, max_results):
+    """
+    Gets a list of playlists for a given YouTube channel.
+    
+    Args:
+        youtube: YouTube API client.
+        channel_id (str): YouTube channel ide.
+        max_results (int): Maximum number of playlists to get.
+    
+    Returns:
+        list: List of playlist dicts.
+    """
     request = youtube.playlists().list(
         part="id,snippet",
         channelId=channel_id,
@@ -49,6 +69,16 @@ def get_playlists(youtube, channel_id, max_results):
     return playlists_list
 
 def get_one_playlist(youtube, playlist_id):
+    """
+    Gets data of a specific playlist.
+    
+    Args:
+        youtube: YouTube API client.
+        playlist_id (str): Playlist id.
+    
+    Returns:
+        list: List containing playlist dict.
+    """
     request = youtube.playlists().list(
         part="id,snippet",
         id=playlist_id
@@ -58,7 +88,16 @@ def get_one_playlist(youtube, playlist_id):
     return playlist
 
 def get_playlist_items(youtube, playlist_id):
+    """
+    Retrieves videos from a playlist.
     
+    Args:
+        youtube: YouTube API client.
+        playlist_id (str): Playlist id.
+    
+    Returns:
+        list: List of videos dicts.
+    """
     request = youtube.playlistItems().list(
         part="contentDetails,snippet",
         playlistId=playlist_id,
@@ -69,6 +108,16 @@ def get_playlist_items(youtube, playlist_id):
     return videos_list
 
 def get_video(youtube, video_id):
+    """
+    Fetches data for a specific video.
+    
+    Args:
+        youtube: YouTube API client.
+        video_id (str): Video id.
+    
+    Returns:
+        dict: Video dict.
+    """
     request = youtube.videos().list(
         part="snippet",
         id=video_id
@@ -77,7 +126,16 @@ def get_video(youtube, video_id):
     return video_data
 
 def get_transcript(ytt_api, video_id):
+    """
+    Fetches transcript for a video using YouTubeTranscriptApi.
     
+    Args:
+        ytt_api: YouTubeTranscriptApi client.
+        video_id (str): Video id.
+    
+    Returns:
+        list or None: Transcript data list if it's possible to download subtitles, else None.
+    """
     try:
       fetched_transcript = ytt_api.fetch(video_id, languages=['ru'])
     except Exception:
@@ -96,6 +154,12 @@ def dumper(obj, filename):
 
 
 def make_folder(playlist):
+    """
+    Creates a folder for a playlist and saves its description JSON.
+    
+    Args:
+        playlist (dict): Playlist dict from YouTube API.
+    """
     if os.path.exists(f"database/{playlist['id']}"):
         return
     
@@ -105,6 +169,13 @@ def make_folder(playlist):
         json.dump(playlist, file)
 
 def add_to_folder(playlist_id, video):
+    """
+    Adds video JSON file to the playlist folder.
+    
+    Args:
+        playlist_id (str): Playlist id.
+        video (dict): Video dict.
+    """
     video_id = video["contentDetails"]["videoId"]
     filename = f"{video_id}.json"
     dir = f"database/{playlist_id}/{filename}"
@@ -118,43 +189,39 @@ def add_to_folder(playlist_id, video):
     
    
 def update(youtube, ytt_api):
+    """
+    Fetches latest playlists and videos for the specified channel, storing them in the database directory.
+    For each playlist, creates a folder and downloads data and transcripts for videos.
+    
+    Args:
+        youtube: YouTube API client.
+        ytt_api: YouTubeTranscriptApi client.
+    """
     channel_id = "UCdxesVp6Fs7wLpnp1XKkvZg"
     playlists = get_playlists(youtube, channel_id, 20)
 
     for playlist in playlists:
-
-      #playlist_id = "PL4_hYwCyhAvaUQ6oGA7sjUcf2VXSo1Txy"
       playlist_id = playlist["id"]
-      #playlist = get_one_playlist(youtube, playlist_id)[0]
       print("Плейлист:", playlist["snippet"]["title"])
       print("Плейлист:", playlist["snippet"]["description"])
       print("-----------------------------------------------")
-      # title = "Алгоритмы и структуры данных / основной поток (1 курс, весна 2025) - Степанов И. Д."
-      # big_video_id = "Cy7M4WnFFUY"
 
       make_folder(playlist)
 
       playlist_items = get_playlist_items(youtube, playlist_id)
 
       for video in playlist_items:
-          #video = get_video(item["id"])
           print(video["snippet"]["title"])
-          #print(video["snippet"]["description"])
           video_id = video["contentDetails"]["videoId"]
-          #print(f"id={video_id}")
           
           check_dir = f"database/{playlist_id}/{video_id}.json"
           if not os.path.exists(check_dir):
               video["snippet"]["transcript"] = get_transcript(ytt_api, video_id)
               add_to_folder(playlist_id, video)
       print("================================")
-
-def pickle_get_object(filename):
-    with open(filename, 'rb') as file:
-        obj = pickle.load(file)
-    return obj
     
 def main():
+    """Main function to authenticate and update the database."""
     youtube, ytt_api = authentification()
     update(youtube, ytt_api)
 
